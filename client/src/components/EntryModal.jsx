@@ -1,31 +1,47 @@
-import { useState, } from 'react';
+import { useState } from 'react';
 import { calculateHours } from '../utils';
+import { api } from '../api';
 
 export default function EntryModal({ date, existingEntry, onClose, onSaved }) {
     const [start, setStart] = useState(existingEntry?.start_time || '');
     const [end, setEnd] = useState(existingEntry?.end_time || '');
     const [comment, setComment] = useState(existingEntry?.comment || '');
+    const [hourlyRate, setHourlyRate] = useState(existingEntry?.hourly_rate || '');
     const [saving, setSaving] = useState(false);
     const hours = calculateHours(start, end);
 
     const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const payload = { date, start_time: start, end_time: end, comment };
-    const method = existingEntry ? 'PUT' : 'POST';
-    const url = existingEntry ? `/api/entries/${existingEntry.id}` : '/api/entries';
-    await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-    onSaved();
+    const payload = {
+        date,
+        start_time: start,
+        end_time: end,
+        comment,
+        hourly_rate: hourlyRate || null,
+    };
+    try {
+        if (existingEntry) {
+        await api.saveEntry(payload, existingEntry.id);
+        } else {
+        await api.saveEntry(payload);
+        }
+        onSaved();
+    } catch (err) {
+        alert('Ошибка сохранения: ' + err.message);
+    } finally {
+        setSaving(false);
+    }
     };
 
     const handleDelete = async () => {
     if (!existingEntry) return;
-    await fetch(`/api/entries/${existingEntry.id}`, { method: 'DELETE' });
-    onSaved();
+    try {
+        await api.deleteEntry(existingEntry.id);
+        onSaved();
+    } catch (err) {
+        alert('Ошибка удаления: ' + err.message);
+    }
     };
 
     return (
@@ -52,6 +68,17 @@ export default function EntryModal({ date, existingEntry, onClose, onSaved }) {
             <label className="block text-sm mb-1">Комментарий (адрес, место)</label>
             <textarea value={comment} onChange={e => setComment(e.target.value)}
                 className="w-full bg-[#121212] border border-[#2C2C2C] p-2 text-[#E0E0E0] h-20 focus:border-[#FF4D00] outline-none"
+            />
+            </div>
+            <div>
+            <label className="block text-sm mb-1">Ставка за день (₽) – если отличается</label>
+            <input
+                type="number"
+                step="0.01"
+                value={hourlyRate}
+                onChange={e => setHourlyRate(e.target.value)}
+                placeholder="Оставить пустым для глобальной ставки"
+                className="w-full bg-[#121212] border border-[#2C2C2C] p-2 text-[#E0E0E0] focus:border-[#FF4D00] outline-none"
             />
             </div>
             <div className="flex justify-between items-center">

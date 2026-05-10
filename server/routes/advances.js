@@ -4,8 +4,8 @@ const { getDb, saveDb, rowsToObjects } = require('../database');
 
 router.get('/:month', async (req, res) => {
     const myDb = await getDb();
-    const stmt = myDb.prepare(`SELECT amount FROM advances WHERE month = ?`);
-    stmt.bind([req.params.month]);
+    const stmt = myDb.prepare(`SELECT amount FROM advances WHERE user_id = ? AND month = ?`);
+    stmt.bind([req.userId, req.params.month]);
     const rows = rowsToObjects(stmt);
     res.json({ amount: rows.length > 0 ? rows[0].amount : 0 });
 });
@@ -13,16 +13,14 @@ router.get('/:month', async (req, res) => {
 router.put('/:month', async (req, res) => {
     const { amount } = req.body;
     const myDb = await getDb();
-  // Проверяем существование
-    const check = myDb.prepare(`SELECT month FROM advances WHERE month = ?`);
-    check.bind([req.params.month]);
+    const check = myDb.prepare(`SELECT month FROM advances WHERE user_id = ? AND month = ?`);
+    check.bind([req.userId, req.params.month]);
     const exists = check.step();
     check.free();
-
     if (exists) {
-    myDb.run(`UPDATE advances SET amount = ? WHERE month = ?`, [parseFloat(amount) || 0, req.params.month]);
+    myDb.run(`UPDATE advances SET amount = ? WHERE user_id = ? AND month = ?`, [parseFloat(amount) || 0, req.userId, req.params.month]);
     } else {
-    myDb.run(`INSERT INTO advances (month, amount) VALUES (?, ?)`, [req.params.month, parseFloat(amount) || 0]);
+    myDb.run(`INSERT INTO advances (user_id, month, amount) VALUES (?, ?, ?)`, [req.userId, req.params.month, parseFloat(amount) || 0]);
     }
     saveDb();
     res.json({ success: true });

@@ -1,15 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const helmet = require('helmet');
 
 const entriesRouter = require('./routes/entries');
 const settingsRouter = require('./routes/settings');
 const advancesRouter = require('./routes/advances');
 const summaryRouter = require('./routes/summary');
+const authRouter = require('./routes/auth');
+const { authMiddleware } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
@@ -18,6 +22,11 @@ app.use('/api/entries', entriesRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/advances', advancesRouter);
 app.use('/api/summary', summaryRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/entries', authMiddleware, entriesRouter);
+app.use('/api/settings', authMiddleware, settingsRouter);
+app.use('/api/advances', authMiddleware, advancesRouter);
+app.use('/api/summary', authMiddleware, summaryRouter);
 
 // Раздача статики фронтенда (после сборки React)
 if (process.env.NODE_ENV === 'production') {

@@ -5,7 +5,7 @@ import { calculateHours, formatTime } from '../utils';
 export default function EntriesTable({ days, entries, onEntrySaved }) {
   const [selectedEntry, setSelectedEntry] = useState(null);  // объект { date, entry? }
     const [modalOpen, setModalOpen] = useState(false);
-
+    
     const openForDate = (dateStr) => {
     const entry = entries.find(e => e.date === dateStr) || null;
     setSelectedEntry({ date: dateStr, entry });
@@ -27,6 +27,7 @@ export default function EntriesTable({ days, entries, onEntrySaved }) {
                 <th>День</th>
                 <th>Время работы</th>
                 <th>Часы</th>
+                <th>Ставка</th>
                 <th>Комментарий</th>
                 <th></th>
             </tr>
@@ -38,12 +39,16 @@ export default function EntriesTable({ days, entries, onEntrySaved }) {
                 const timeDisplay = entry && entry.start_time && entry.end_time
                 ? `${formatTime(entry.start_time)} – ${formatTime(entry.end_time)}`
                 : '—';
+                const effectiveRate = entry?.hourly_rate != null ? entry.hourly_rate : '—';
                 return (
                 <tr key={dateStr} className="hover:bg-[#1A1A1A] cursor-pointer" onClick={() => openForDate(dateStr)}>
                     <td className="font-bold">{dayNum}</td>
                     <td>{dayOfWeek}</td>
                     <td>{timeDisplay}</td>
                     <td>{entry && entry.start_time && entry.end_time ? hours : '—'}</td>
+                    <td className="max-w-[200px] truncate" title={entry?.comment}>{entry?.comment || '—'}</td>
+                    <td>{entry && entry.start_time && entry.end_time ? hours : '—'}</td>
+                    <td>{effectiveRate}</td>
                     <td className="max-w-[200px] truncate" title={entry?.comment}>{entry?.comment || '—'}</td>
                     <td>
                     <span className="btn-brutal text-sm px-2 py-1">✎</span>
