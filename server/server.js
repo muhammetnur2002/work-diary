@@ -13,6 +13,18 @@ const { authMiddleware } = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const fs = require('fs');
+const path = require('path');
+
+// Сброс базы данных при необходимости (для миграции на новый формат паролей)
+if (process.env.RESET_DB === 'true') {
+    const dbPath = path.join(__dirname, 'diary.db');
+    if (fs.existsSync(dbPath)) {
+    fs.unlinkSync(dbPath);
+    console.log('Старая база данных удалена для чистой миграции.');
+    }
+}
+
 app.use(helmet());
 app.use(cors());
 app.use(express.json());

@@ -21,10 +21,10 @@ async function request(url, options = {}) {
 }
 
 export const api = {
-    register: (username, password) =>
-    request('/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) }),
-    login: (username, password) =>
-    request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+    register: (username, passwordHash) =>
+    request('/auth/register', { method: 'POST', body: JSON.stringify({ username, passwordHash }) }),
+login: (username, passwordHash) =>
+    request('/auth/login', { method: 'POST', body: JSON.stringify({ username, passwordHash }) }),
     getEntries: (month) => request(`/entries?month=${month}`),
     saveEntry: (data, id) => {
     const method = id ? 'PUT' : 'POST';
