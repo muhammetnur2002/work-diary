@@ -1,0 +1,4 @@
+node_modules/
+diary.db
+client/dist/
+.env
