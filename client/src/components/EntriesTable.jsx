@@ -27,7 +27,7 @@ export default function EntriesTable({ days, entries, onEntrySaved }) {
         <table className="table-brutal">
             <thead>
             <tr>
-                <th>Дата</th>
+                <th>П/Ч</th>
                 <th>День</th>
                 <th>Время работы</th>
                 <th>Часы</th>
