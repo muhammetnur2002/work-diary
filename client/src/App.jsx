@@ -1,81 +1,60 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import MonthNavigator from './components/MonthNavigator';
 import EntriesTable from './components/EntriesTable';
 import MonthlySummary from './components/MonthlySummary';
-import Login from './components/Login';
 import { getDaysInMonth } from './utils';
-import { api } from './api';
+import { loadData, saveData } from './localStorage';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
-  const [entries, setEntries] = useState([]);
-  const [hourlyRate, setHourlyRate] = useState(0);
-  const [advance, setAdvance] = useState(0);
-  const [summary, setSummary] = useState({ total_hours: 0, gross_salary: 0, net_salary: 0 });
+  const [allData, setAllData] = useState(loadData);
 
   const days = getDaysInMonth(year, month);
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
 
-  const fetchEntries = useCallback(async () => {
-    if (!isAuthenticated) return;
-    const data = await api.getEntries(monthStr);
-    setEntries(data);
-  }, [monthStr, isAuthenticated]);
+  // Автосохранение при любом изменении
+  const updateData = useCallback((newData) => {
+    setAllData(newData);
+    saveData(newData);
+  }, []);
 
-  const fetchSettings = async () => {
-    const data = await api.getHourlyRate();
-    setHourlyRate(data.value);
+  // Получить записи текущего месяца (массив объектов или null)
+  const entries = days.map(day => allData.entries[day.dateStr] || null);
+
+  // Сохранить или удалить запись за конкретный день
+  const saveEntry = (date, entryData) => {
+    const newEntries = { ...allData.entries };
+    if (entryData === null) {
+      delete newEntries[date];
+    } else {
+      newEntries[date] = { ...newEntries[date], ...entryData };
+    }
+    const newData = { ...allData, entries: newEntries };
+    updateData(newData);
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const fetchAdvance = async () => {
-    const data = await api.getAdvance(monthStr);
-    setAdvance(data.amount);
+  // Глобальная ставка
+  const {hourlyRate} = allData.settings;
+  const setHourlyRate = (val) => {
+    const newData = {
+      ...allData,
+      settings: { ...allData.settings, hourlyRate: parseFloat(val) || 0 }
+    };
+    updateData(newData);
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const fetchSummary = async () => {
-    const data = await api.getSummary(monthStr);
-    setSummary(data);
+  // Аванс за месяц
+  const advance = allData.advances[monthStr] || 0;
+  const setAdvance = (val) => {
+    const newAdvances = { ...allData.advances, [monthStr]: parseFloat(val) || 0 };
+    const newData = { ...allData, advances: newAdvances };
+    updateData(newData);
   };
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchEntries();
-    fetchAdvance();
-    fetchSummary();
-  }, [monthStr, isAuthenticated, fetchEntries, fetchAdvance, fetchSummary]);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchSettings();
-  }, [isAuthenticated]);
-
-  const handleHourlyRateSave = async (value) => {
-    await api.updateHourlyRate(value);
-    setHourlyRate(value);
-    fetchSummary();
-  };
-
-  const handleAdvanceSave = async (amount) => {
-    await api.updateAdvance(monthStr, amount);
-    setAdvance(amount);
-    fetchSummary();
-  };
-
-  const handleEntrySaved = () => {
-    fetchEntries();
-    fetchSummary();
-  };
-
-  if (!isAuthenticated) {
-    return <Login onAuth={() => setIsAuthenticated(true)} />;
-  }
+  // Расчёт месячного отчёта
+  const summary = calculateSummary(days, allData, monthStr);
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-5xl mx-auto">
@@ -86,17 +65,52 @@ function App() {
       <EntriesTable
         days={days}
         entries={entries}
-        onEntrySaved={handleEntrySaved}
+        onEntrySaved={(date, entry) => saveEntry(date, entry)}
       />
       <MonthlySummary
         summary={summary}
         hourlyRate={hourlyRate}
-        onHourlyRateSave={handleHourlyRateSave}
+        onHourlyRateSave={setHourlyRate}
         advance={advance}
-        onAdvanceSave={handleAdvanceSave}
+        onAdvanceSave={setAdvance}
       />
     </div>
   );
+}
+
+function calculateSummary(days, allData, monthStr) {
+  let totalHours = 0;
+  let totalSalary = 0;
+  const globalRate = allData.settings.hourlyRate || 0;
+
+  days.forEach(day => {
+    const entry = allData.entries[day.dateStr];
+    if (!entry || !entry.start_time || !entry.end_time) return;
+
+    const [sh, sm] = entry.start_time.split(':').map(Number);
+    const [eh, em] = entry.end_time.split(':').map(Number);
+    let startMin = sh * 60 + sm;
+    let endMin = eh * 60 + em;
+    if (endMin < startMin) endMin += 24 * 60;
+    const hours = (endMin - startMin) / 60;
+    totalHours += hours;
+
+    const rate = (entry.hourly_rate != null && entry.hourly_rate > 0)
+      ? entry.hourly_rate
+      : globalRate;
+    totalSalary += hours * rate;
+  });
+
+  const advance = allData.advances[monthStr] || 0;
+  const net = totalSalary - advance;
+
+  return {
+    total_hours: Math.round(totalHours * 100) / 100,
+    hourly_rate: globalRate,
+    gross_salary: Math.round(totalSalary * 100) / 100,
+    advance: advance,
+    net_salary: Math.round(net * 100) / 100,
+  };
 }
 
 export default App;

@@ -1,47 +1,25 @@
 import { useState } from 'react';
 import { calculateHours } from '../utils';
-import { api } from '../api';
 
-export default function EntryModal({ date, existingEntry, onClose, onSaved }) {
+export default function EntryModal({ date, existingEntry, onClose, onSave }) {
     const [start, setStart] = useState(existingEntry?.start_time || '');
     const [end, setEnd] = useState(existingEntry?.end_time || '');
     const [comment, setComment] = useState(existingEntry?.comment || '');
     const [hourlyRate, setHourlyRate] = useState(existingEntry?.hourly_rate || '');
-    const [saving, setSaving] = useState(false);
     const hours = calculateHours(start, end);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
     e.preventDefault();
-    setSaving(true);
-    const payload = {
-        date,
-        start_time: start,
-        end_time: end,
-        comment,
-        hourly_rate: hourlyRate || null,
-    };
-    try {
-        if (existingEntry) {
-        await api.saveEntry(payload, existingEntry.id);
-        } else {
-        await api.saveEntry(payload);
-        }
-        onSaved();
-    } catch (err) {
-        alert('Ошибка сохранения: ' + err.message);
-    } finally {
-        setSaving(false);
-    }
+    onSave({
+        start_time: start || null,
+        end_time: end || null,
+        comment: comment || '',
+        hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
+    });
     };
 
-    const handleDelete = async () => {
-    if (!existingEntry) return;
-    try {
-        await api.deleteEntry(existingEntry.id);
-        onSaved();
-    } catch (err) {
-        alert('Ошибка удаления: ' + err.message);
-    }
+    const handleDelete = () => {
+    onSave(null); // null означает удаление
     };
 
     return (
@@ -82,9 +60,7 @@ export default function EntryModal({ date, existingEntry, onClose, onSaved }) {
             />
             </div>
             <div className="flex justify-between items-center">
-            <button type="submit" disabled={saving} className="btn-brutal">
-                {saving ? 'Сохранение...' : 'Сохранить'}
-            </button>
+            <button type="submit" className="btn-brutal">Сохранить</button>
             {existingEntry && (
                 <button type="button" onClick={handleDelete} className="text-red-400 hover:underline text-sm">
                 Удалить запись
